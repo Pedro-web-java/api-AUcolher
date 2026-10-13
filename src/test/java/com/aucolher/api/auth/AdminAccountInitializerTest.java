@@ -10,11 +10,13 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.boot.DefaultApplicationArguments;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
@@ -74,6 +76,16 @@ class AdminAccountInitializerTest {
         run(initializer(ADMIN_EMAIL, null, null));
 
         verifyNoInteractions(userRepository, passwordEncoder);
+    }
+
+    @Test
+    void doesNotCrashStartupWhenDatabaseRejectsTheAdmin() {
+        when(userRepository.findByEmail(ADMIN_EMAIL)).thenReturn(Optional.empty());
+        when(passwordEncoder.encode(ADMIN_PASSWORD)).thenReturn("hash");
+        when(userRepository.save(any(User.class)))
+                .thenThrow(new DataIntegrityViolationException("chk_users_user_type"));
+
+        assertThatCode(() -> run(initializer(ADMIN_EMAIL, ADMIN_PASSWORD, "Admin"))).doesNotThrowAnyException();
     }
 
     @Test

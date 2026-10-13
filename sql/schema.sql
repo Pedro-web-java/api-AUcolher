@@ -14,7 +14,7 @@
 -- sql/migrations/ — eles renomeiam tudo sem perder os dados.
 --
 -- Espelha as entidades do Spring Boot (User, TeamMember,
--- VisitingHour, Animal, Favorite) e a seção 6 de
+-- VisitingHour, Animal, Favorite, Event, MatchProfile) e a seção 6 de
 -- docs/regras-de-negocio.md.
 -- Cópia mantida no backend em sql/schema.sql.
 -- ============================================================
@@ -218,6 +218,91 @@ CREATE TABLE IF NOT EXISTS favorites (
 CREATE INDEX IF NOT EXISTS idx_favorites_user ON favorites (user_id, created_at DESC);
 
 COMMENT ON TABLE favorites IS 'Animais favoritados pelos usuários — um registro por par usuário/animal';
+
+-- ------------------------------------------------------------
+-- events — eventos criados por ONGs (mesma definição da migração 004)
+-- ------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS events (
+    id           BIGSERIAL     PRIMARY KEY,
+    ngo_id       BIGINT        NOT NULL REFERENCES users(id),
+    title        VARCHAR(120)  NOT NULL,
+    description  TEXT          NOT NULL,
+    category     VARCHAR(20)   NOT NULL CHECK (category IN ('ADOPTION_FAIR', 'HEALTH', 'BAZAAR', 'WORKSHOP')),
+    date         DATE          NOT NULL,
+    start_time   TIME          NOT NULL,
+    end_time     TIME,
+    venue_name   VARCHAR(120)  NOT NULL,
+    cep          VARCHAR(8),
+    street       VARCHAR(150)  NOT NULL,
+    number       VARCHAR(20),
+    complement   VARCHAR(100),
+    district     VARCHAR(100),
+    city         VARCHAR(100)  NOT NULL,
+    state        VARCHAR(2)    NOT NULL,
+    capacity     INTEGER       CHECK (capacity IS NULL OR capacity > 0),
+    cover_url    TEXT,
+    status       VARCHAR(20)   NOT NULL DEFAULT 'ACTIVE' CHECK (status IN ('ACTIVE', 'CANCELLED')),
+    created_at   TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CHECK (end_time IS NULL OR end_time > start_time)
+);
+
+CREATE INDEX IF NOT EXISTS idx_events_ngo ON events (ngo_id);
+CREATE INDEX IF NOT EXISTS idx_events_status_date ON events (status, date);
+
+-- ------------------------------------------------------------
+-- event_attendances — confirmações de presença
+-- ------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS event_attendances (
+    event_id      BIGINT     NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+    user_id       BIGINT     NOT NULL REFERENCES users(id),
+    confirmed_at  TIMESTAMP  NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (event_id, user_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_event_attendances_user ON event_attendances (user_id);
+
+-- ------------------------------------------------------------
+-- match_profiles — respostas do quiz do AUmatch (uma linha por
+-- pessoa). As colunas aceitam nulo: "Minha conta" salva respostas
+-- soltas, e o quiz só conta como completo com as 7 respondidas.
+-- A pergunta "Quem mora com você?" vira as três colunas has_*:
+-- todas nulas (sem resposta) ou todas preenchidas ("Ninguém" =
+-- três FALSE).
+-- ------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS match_profiles (
+    user_id             BIGINT       PRIMARY KEY REFERENCES users (id) ON DELETE CASCADE,
+
+    -- Estilo de vida
+    housing             VARCHAR(20),
+    exercise_routine    VARCHAR(20),
+    time_away           VARCHAR(20),
+    has_children        BOOLEAN,
+    has_dogs            BOOLEAN,
+    has_cats            BOOLEAN,
+
+    -- Preferências para o pet
+    species_preference  VARCHAR(10),
+    ideal_pet_profile   VARCHAR(30),
+    preferred_size      VARCHAR(10),
+
+    created_at          TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at          TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT chk_match_profiles_housing            CHECK (housing IN ('APARTMENT', 'HOUSE_WITH_YARD', 'FARM')),
+    CONSTRAINT chk_match_profiles_exercise_routine   CHECK (exercise_routine IN ('SEDENTARY', 'ACTIVE', 'VERY_ACTIVE')),
+    CONSTRAINT chk_match_profiles_time_away          CHECK (time_away IN ('SHORT', 'REGULAR', 'LONG')),
+    CONSTRAINT chk_match_profiles_household          CHECK ((has_children IS NULL) = (has_dogs IS NULL)
+                                                        AND (has_dogs IS NULL) = (has_cats IS NULL)),
+    CONSTRAINT chk_match_profiles_species_preference CHECK (species_preference IN ('DOG', 'CAT', 'BOTH')),
+    CONSTRAINT chk_match_profiles_ideal_pet_profile  CHECK (ideal_pet_profile IN ('CALM_COMPANION', 'PLAYFUL_ACTIVE', 'PROTECTIVE_INDEPENDENT')),
+    CONSTRAINT chk_match_profiles_preferred_size     CHECK (preferred_size IN ('SMALL', 'MEDIUM', 'LARGE'))
+);
+
+COMMENT ON TABLE  match_profiles                  IS 'Perfil AUmatch: respostas do quiz de cada pessoa, usadas no cálculo de compatibilidade';
+COMMENT ON COLUMN match_profiles.user_id          IS 'A pessoa (PERSON) dona das respostas — uma linha por conta';
+COMMENT ON COLUMN match_profiles.time_away        IS 'Tempo fora de casa: SHORT (até 4h), REGULAR (4h a 8h) ou LONG (mais de 8h)';
+COMMENT ON COLUMN match_profiles.has_children     IS 'Mora com crianças — as três colunas has_* nulas juntas = pergunta sem resposta';
+COMMENT ON COLUMN match_profiles.preferred_size   IS 'Porte preferido; se estiver vazio, quem mora em APARTMENT conta como SMALL';
 
 -- ============================================================
 -- Opcional: trazer as contas de teste do banco antigo (adocao_db)

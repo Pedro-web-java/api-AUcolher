@@ -33,6 +33,13 @@ public interface AnimalRepository extends JpaRepository<Animal, Long>, JpaSpecif
     List<Animal> findByOwnerIdAndStatusOrderByCreatedAtDesc(Long ownerId, AnimalStatus status);
 
     /**
+     * Candidatos do deck do AUmatch: os disponíveis de contas ativas, fora os
+     * anúncios de quem está vendo. A ordem vem do score, calculado na MatchService.
+     */
+    @EntityGraph(attributePaths = "owner")
+    List<Animal> findByStatusAndOwnerActiveTrueAndOwnerIdNot(AnimalStatus status, Long ownerId);
+
+    /**
      * Só a foto de capa (ordem 0) de cada animal, numa consulta única. Os
      * cards não precisam das outras fotos, que podem ter centenas de KB cada.
      */
