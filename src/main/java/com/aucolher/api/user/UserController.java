@@ -1,6 +1,7 @@
 package com.aucolher.api.user;
 
 import com.aucolher.api.user.dto.ProfileUpdateDTO;
+import com.aucolher.api.user.dto.PublicProfileDTO;
 import com.aucolher.api.user.dto.UserResponseDTO;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -15,6 +16,12 @@ import org.springframework.web.bind.annotation.*;
 public class UserController {
 
     private final UserService userService;
+
+    /** Público: página de perfil de uma ONG ou pessoa, sem e-mail de login. */
+    @GetMapping("/{id}/public-profile")
+    public ResponseEntity<PublicProfileDTO> getPublicProfile(@PathVariable Long id) {
+        return ResponseEntity.ok(userService.getPublicProfile(id));
+    }
 
     /**
      * "Minha conta": a conta é a do token (o e-mail vem no JWT), então não há

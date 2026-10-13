@@ -1,7 +1,9 @@
 package com.aucolher.api.user;
 
 import com.aucolher.api.shared.exception.BusinessException;
+import com.aucolher.api.shared.exception.ResourceNotFoundException;
 import com.aucolher.api.user.dto.ProfileUpdateDTO;
+import com.aucolher.api.user.dto.PublicProfileDTO;
 import com.aucolher.api.user.dto.UserResponseDTO;
 import com.aucolher.api.user.entity.VisitingHour;
 import com.aucolher.api.user.entity.TeamMember;
@@ -34,6 +36,20 @@ public class UserService {
         return userRepository.findByEmail(email)
                 .map(UserResponseDTO::from)
                 .orElseThrow(() -> new BusinessException("Usuário não encontrado"));
+    }
+
+    /**
+     * Perfil público de qualquer conta ativa. Admin não tem perfil público, e
+     * conta desativada some do site: os dois casos respondem 404, como um id
+     * que não existe.
+     */
+    @Transactional(readOnly = true)
+    public PublicProfileDTO getPublicProfile(Long id) {
+        return userRepository.findById(id)
+                .filter(user -> Boolean.TRUE.equals(user.getActive()))
+                .filter(user -> user.getUserType() != UserType.ADMIN)
+                .map(PublicProfileDTO::from)
+                .orElseThrow(() -> new ResourceNotFoundException("Perfil não encontrado"));
     }
 
     /**
