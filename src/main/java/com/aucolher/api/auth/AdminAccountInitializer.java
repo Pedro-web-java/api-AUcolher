@@ -10,6 +10,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
+import org.springframework.dao.DataAccessException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
@@ -67,15 +68,23 @@ public class AdminAccountInitializer implements ApplicationRunner {
             return;
         }
 
-        userRepository.findByEmail(email).ifPresentOrElse(
-                existing -> {
-                    if (existing.getUserType() != UserType.ADMIN) {
-                        log.warn("ADMIN_EMAIL ({}) já pertence a uma conta {}: ela não foi transformada em admin. " +
-                                "Use outro e-mail.", email, existing.getUserType());
-                    }
-                },
-                this::createAdmin
-        );
+        // O admin é um extra da subida: se o banco recusar (ex.: constraint de user_type sem
+        // 'ADMIN' por falta da migração 003), a API sobe mesmo assim e o motivo vai para o log.
+        try {
+            userRepository.findByEmail(email).ifPresentOrElse(
+                    existing -> {
+                        if (existing.getUserType() != UserType.ADMIN) {
+                            log.warn("ADMIN_EMAIL ({}) já pertence a uma conta {}: ela não foi transformada em admin. " +
+                                    "Use outro e-mail.", email, existing.getUserType());
+                        }
+                    },
+                    this::createAdmin
+            );
+        } catch (DataAccessException e) {
+            log.error("Não foi possível criar a conta admin ({}). Se o banco é anterior ao tipo ADMIN, " +
+                    "aplique sql/migrations/003_admin_and_verified_ngos.sql. Causa: {}",
+                    email, e.getMostSpecificCause().getMessage());
+        }
     }
 
     private void createAdmin() {

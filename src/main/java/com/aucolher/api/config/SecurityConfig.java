@@ -62,6 +62,13 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/animals/mine").authenticated()
                 // Vitrine pública: listagem, detalhes e animais de um perfil, sem login
                 .requestMatchers(HttpMethod.GET, "/api/animals", "/api/animals/*", "/api/users/*/animals").permitAll()
+                // Eventos: listagem e detalhe são públicos; "mine" e "attending" vêm antes
+                // porque "/api/events/*" também casaria com eles
+                .requestMatchers(HttpMethod.GET, "/api/events/mine", "/api/events/attending").authenticated()
+                .requestMatchers(HttpMethod.GET, "/api/events", "/api/events/*").permitAll()
+                // AUmatch (quiz e deck): só pessoa física, que é quem adota.
+                // Sem token → 401; ONG ou admin → 403
+                .requestMatchers("/api/match/**").hasRole("PERSON")
                 // Painel do admin: só a conta ADMIN (a autoridade ROLE_ADMIN vem do
                 // CustomUserDetailsService). Sem token → 401; logado sem ser admin → 403
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")

@@ -16,6 +16,8 @@
 -- Espelha as entidades do Spring Boot (User, TeamMember,
 -- VisitingHour, Animal, Favorite, Campaign, Donation) e a seção 6
 -- de docs/regras-de-negocio.md.
+-- VisitingHour, Animal, Favorite, Event, MatchProfile) e a seção 6 de
+-- docs/regras-de-negocio.md.
 -- Cópia mantida no backend em sql/schema.sql.
 -- ============================================================
 
