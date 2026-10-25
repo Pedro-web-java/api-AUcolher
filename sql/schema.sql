@@ -14,6 +14,8 @@
 -- sql/migrations/ — eles renomeiam tudo sem perder os dados.
 --
 -- Espelha as entidades do Spring Boot (User, TeamMember,
+-- VisitingHour, Animal, Favorite, Campaign, Donation) e a seção 6
+-- de docs/regras-de-negocio.md.
 -- VisitingHour, Animal, Favorite, Event, MatchProfile) e a seção 6 de
 -- docs/regras-de-negocio.md.
 -- Cópia mantida no backend em sql/schema.sql.
@@ -23,9 +25,9 @@
 -- o comando quando o banco ainda não existe, e o \gexec o executa.
 -- template0 evita conflito de encoding com o template1 no Windows.
 SELECT 'CREATE DATABASE aucolher_db WITH TEMPLATE = template0 ENCODING = ''UTF8'''
-WHERE NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = 'aucolher_db')\gexec
+    WHERE NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = 'aucolher_db')\gexec
 
-\c aucolher_db
+    \c aucolher_db
 
 -- ============================================================
 -- Tabelas
@@ -39,8 +41,8 @@ WHERE NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = 'aucolher_db')\gexec
 -- derivado dos registros de adoção.
 -- ------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS users (
-    id                   BIGSERIAL     PRIMARY KEY,
-    name                 VARCHAR(150)  NOT NULL,
+                                     id                   BIGSERIAL     PRIMARY KEY,
+                                     name                 VARCHAR(150)  NOT NULL,
     email                VARCHAR(150)  NOT NULL,
     password             VARCHAR(255),
     user_type            VARCHAR(20)   NOT NULL,
@@ -77,7 +79,7 @@ CREATE TABLE IF NOT EXISTS users (
     CONSTRAINT chk_users_ngo_has_cnpj        CHECK (user_type <> 'NGO' OR cnpj IS NOT NULL),
     CONSTRAINT chk_users_local_has_password  CHECK (provider <> 'LOCAL' OR password IS NOT NULL),
     CONSTRAINT chk_users_founded_year        CHECK (founded_year IS NULL OR (user_type = 'NGO' AND founded_year >= 1800))
-);
+    );
 
 CREATE INDEX IF NOT EXISTS idx_users_user_type ON users (user_type);
 
@@ -99,13 +101,13 @@ COMMENT ON COLUMN users.state               IS 'Sigla da UF, ex: SC';
 -- ngo_team — "Equipe" do perfil de ONG (seção 6.2)
 -- ------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS ngo_team (
-    user_id     BIGINT        NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+                                        user_id     BIGINT        NOT NULL REFERENCES users (id) ON DELETE CASCADE,
     sort_order  INTEGER       NOT NULL,
     name        VARCHAR(150)  NOT NULL,
     role        VARCHAR(100),
 
     PRIMARY KEY (user_id, sort_order)
-);
+    );
 
 COMMENT ON TABLE ngo_team IS 'Integrantes da equipe exibidos no perfil público da ONG, na ordem definida por "sort_order"';
 
@@ -113,13 +115,13 @@ COMMENT ON TABLE ngo_team IS 'Integrantes da equipe exibidos no perfil público 
 -- ngo_visiting_hours — "Horário de visitas" (seção 6.2)
 -- ------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS ngo_visiting_hours (
-    user_id     BIGINT       NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+                                                  user_id     BIGINT       NOT NULL REFERENCES users (id) ON DELETE CASCADE,
     sort_order  INTEGER      NOT NULL,
     days        VARCHAR(80)  NOT NULL,
     hours       VARCHAR(80)  NOT NULL,
 
     PRIMARY KEY (user_id, sort_order)
-);
+    );
 
 COMMENT ON TABLE ngo_visiting_hours IS 'Faixas de horário de visita da ONG (ex: "Terça a sexta" / "14h às 18h")';
 
@@ -129,8 +131,8 @@ COMMENT ON TABLE ngo_visiting_hours IS 'Faixas de horário de visita da ONG (ex:
 -- a localização vem de users via owner_id.
 -- ------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS animals (
-    id                   BIGSERIAL     PRIMARY KEY,
-    owner_id             BIGINT        NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+                                       id                   BIGSERIAL     PRIMARY KEY,
+                                       owner_id             BIGINT        NOT NULL REFERENCES users (id) ON DELETE CASCADE,
 
     -- Dados básicos
     name                 VARCHAR(60)   NOT NULL,
@@ -170,14 +172,14 @@ CREATE TABLE IF NOT EXISTS animals (
     CONSTRAINT chk_animals_size         CHECK (size IN ('SMALL', 'MEDIUM', 'LARGE')),
     CONSTRAINT chk_animals_age_unit     CHECK (age_unit IN ('YEARS', 'MONTHS')),
     CONSTRAINT chk_animals_age          CHECK ((age_unit = 'MONTHS' AND age_value BETWEEN 0 AND 11)
-                                            OR (age_unit = 'YEARS'  AND age_value BETWEEN 1 AND 30)),
+    OR (age_unit = 'YEARS'  AND age_value BETWEEN 1 AND 30)),
     CONSTRAINT chk_animals_age_group    CHECK (age_group IN ('PUPPY', 'ADULT', 'SENIOR')),
     CONSTRAINT chk_animals_levels       CHECK (energy_level       IN ('LOW', 'MODERATE', 'HIGH')
-                                           AND independence_level IN ('LOW', 'MODERATE', 'HIGH')
-                                           AND vocalization       IN ('LOW', 'MODERATE', 'HIGH')),
+    AND independence_level IN ('LOW', 'MODERATE', 'HIGH')
+    AND vocalization       IN ('LOW', 'MODERATE', 'HIGH')),
     CONSTRAINT chk_animals_temperament  CHECK (temperament IN ('CALM', 'PLAYFUL', 'AFFECTIONATE', 'PROTECTIVE', 'INDEPENDENT')),
     CONSTRAINT chk_animals_status       CHECK (status IN ('AVAILABLE', 'ADOPTED', 'INACTIVE'))
-);
+    );
 
 CREATE INDEX IF NOT EXISTS idx_animals_status_created ON animals (status, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_animals_owner          ON animals (owner_id);
@@ -193,12 +195,12 @@ COMMENT ON COLUMN animals.status     IS 'AVAILABLE, ADOPTED ou INACTIVE (retirad
 -- animal_photos — até 4 fotos por animal, na ordem de exibição
 -- ------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS animal_photos (
-    animal_id   BIGINT   NOT NULL REFERENCES animals (id) ON DELETE CASCADE,
+                                             animal_id   BIGINT   NOT NULL REFERENCES animals (id) ON DELETE CASCADE,
     sort_order  INTEGER  NOT NULL,
     url         TEXT     NOT NULL,
 
     PRIMARY KEY (animal_id, sort_order)
-);
+    );
 
 COMMENT ON TABLE  animal_photos      IS 'Fotos do anúncio; sort_order 0 é a capa usada no card da listagem';
 COMMENT ON COLUMN animal_photos.url  IS 'URL da imagem ou data URL comprimida no frontend (enquanto não há upload próprio)';
@@ -207,102 +209,88 @@ COMMENT ON COLUMN animal_photos.url  IS 'URL da imagem ou data URL comprimida no
 -- favorites — animais salvos por cada usuário
 -- ------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS favorites (
-    id          BIGSERIAL  PRIMARY KEY,
-    user_id     BIGINT     NOT NULL REFERENCES users (id)   ON DELETE CASCADE,
+                                         id          BIGSERIAL  PRIMARY KEY,
+                                         user_id     BIGINT     NOT NULL REFERENCES users (id)   ON DELETE CASCADE,
     animal_id   BIGINT     NOT NULL REFERENCES animals (id) ON DELETE CASCADE,
     created_at  TIMESTAMP  NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT uq_favorites_user_animal UNIQUE (user_id, animal_id)
-);
+    );
 
 CREATE INDEX IF NOT EXISTS idx_favorites_user ON favorites (user_id, created_at DESC);
 
 COMMENT ON TABLE favorites IS 'Animais favoritados pelos usuários — um registro por par usuário/animal';
 
 -- ------------------------------------------------------------
--- events — eventos criados por ONGs (mesma definição da migração 004)
+-- campaigns — campanhas de arrecadação das ONGs (migração 007)
+-- "Encerrada por prazo" não é gravada: é calculada na leitura
+-- (status ACTIVE com deadline < hoje).
 -- ------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS events (
-    id           BIGSERIAL     PRIMARY KEY,
-    ngo_id       BIGINT        NOT NULL REFERENCES users(id),
-    title        VARCHAR(120)  NOT NULL,
-    description  TEXT          NOT NULL,
-    category     VARCHAR(20)   NOT NULL CHECK (category IN ('ADOPTION_FAIR', 'HEALTH', 'BAZAAR', 'WORKSHOP')),
-    date         DATE          NOT NULL,
-    start_time   TIME          NOT NULL,
-    end_time     TIME,
-    venue_name   VARCHAR(120)  NOT NULL,
-    cep          VARCHAR(8),
-    street       VARCHAR(150)  NOT NULL,
-    number       VARCHAR(20),
-    complement   VARCHAR(100),
-    district     VARCHAR(100),
-    city         VARCHAR(100)  NOT NULL,
-    state        VARCHAR(2)    NOT NULL,
-    capacity     INTEGER       CHECK (capacity IS NULL OR capacity > 0),
-    cover_url    TEXT,
-    status       VARCHAR(20)   NOT NULL DEFAULT 'ACTIVE' CHECK (status IN ('ACTIVE', 'CANCELLED')),
-    created_at   TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CHECK (end_time IS NULL OR end_time > start_time)
-);
+CREATE TABLE IF NOT EXISTS campaigns (
+                                         id                    BIGSERIAL     PRIMARY KEY,
+                                         ngo_id                BIGINT        NOT NULL REFERENCES users (id),
+    title                 VARCHAR(120)  NOT NULL,
+    description           TEXT          NOT NULL,
+    category              VARCHAR(20)   NOT NULL,
+    custom_category       VARCHAR(30),
+    is_urgent             BOOLEAN       NOT NULL DEFAULT FALSE,
+    goal_amount           NUMERIC(12,2) NOT NULL,
+    deadline              DATE,
+    cover_url             TEXT,
+    status                VARCHAR(20)   NOT NULL DEFAULT 'ACTIVE',
+    deleted               BOOLEAN       NOT NULL DEFAULT FALSE,
+    removed_by_moderation BOOLEAN       NOT NULL DEFAULT FALSE,
+    moderated_at          TIMESTAMP,
+    moderated_by          BIGINT        REFERENCES users (id) ON DELETE SET NULL,
+    created_at            TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    closed_at             TIMESTAMP,
 
-CREATE INDEX IF NOT EXISTS idx_events_ngo ON events (ngo_id);
-CREATE INDEX IF NOT EXISTS idx_events_status_date ON events (status, date);
+    CONSTRAINT chk_campaigns_category  CHECK (category IN ('HEALTH', 'FOOD', 'INFRASTRUCTURE', 'NEUTERING', 'RESCUE', 'OTHER')),
+    CONSTRAINT chk_campaigns_status    CHECK (status IN ('ACTIVE', 'CLOSED')),
+    CONSTRAINT chk_campaigns_goal      CHECK (goal_amount >= 50),
+    CONSTRAINT chk_campaigns_removed_by_moderation CHECK (NOT removed_by_moderation OR deleted)
+    );
 
--- ------------------------------------------------------------
--- event_attendances — confirmações de presença
--- ------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS event_attendances (
-    event_id      BIGINT     NOT NULL REFERENCES events(id) ON DELETE CASCADE,
-    user_id       BIGINT     NOT NULL REFERENCES users(id),
-    confirmed_at  TIMESTAMP  NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (event_id, user_id)
-);
+CREATE INDEX IF NOT EXISTS idx_campaigns_ngo ON campaigns (ngo_id);
 
-CREATE INDEX IF NOT EXISTS idx_event_attendances_user ON event_attendances (user_id);
+COMMENT ON TABLE  campaigns                       IS 'Campanhas de arrecadação criadas por ONGs; doações via PIX do Mercado Pago';
+COMMENT ON COLUMN campaigns.custom_category       IS 'Nome livre da categoria quando category = OTHER; nulo nas demais';
+COMMENT ON COLUMN campaigns.status                IS 'ACTIVE ou CLOSED (encerrada pela ONG). Prazo vencido também conta como encerrada, mas é calculado na leitura';
+COMMENT ON COLUMN campaigns.deleted               IS 'Exclusão lógica: some das rotas de campanha, mas as doações aprovadas continuam no histórico';
+COMMENT ON COLUMN campaigns.removed_by_moderation IS 'Removida pelo admin (sempre com deleted = true)';
+COMMENT ON COLUMN campaigns.moderated_at          IS 'Última edição da campanha feita pelo admin';
+COMMENT ON COLUMN campaigns.moderated_by          IS 'O admin que fez a última edição da campanha';
 
 -- ------------------------------------------------------------
--- match_profiles — respostas do quiz do AUmatch (uma linha por
--- pessoa). As colunas aceitam nulo: "Minha conta" salva respostas
--- soltas, e o quiz só conta como completo com as 7 respondidas.
--- A pergunta "Quem mora com você?" vira as três colunas has_*:
--- todas nulas (sem resposta) ou todas preenchidas ("Ninguém" =
--- três FALSE).
+-- donations — doações por PIX (Mercado Pago, token da ONG dona)
+-- raisedAmount / donationsCount da campanha = SUM / COUNT das APPROVED.
 -- ------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS match_profiles (
-    user_id             BIGINT       PRIMARY KEY REFERENCES users (id) ON DELETE CASCADE,
+CREATE TABLE IF NOT EXISTS donations (
+                                         id              BIGSERIAL     PRIMARY KEY,
+                                         campaign_id     BIGINT        REFERENCES campaigns (id) ON DELETE SET NULL,
+    campaign_title  VARCHAR(120)  NOT NULL,
+    ngo_id          BIGINT        NOT NULL REFERENCES users (id),
+    donor_id        BIGINT        NOT NULL REFERENCES users (id),
+    amount          NUMERIC(12,2) NOT NULL,
+    status          VARCHAR(20)   NOT NULL DEFAULT 'PENDING',
+    mp_order_id     VARCHAR(64),
+    pix_qr_code     TEXT,
+    created_at      TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    expires_at      TIMESTAMP     NOT NULL,
+    approved_at     TIMESTAMP,
 
-    -- Estilo de vida
-    housing             VARCHAR(20),
-    exercise_routine    VARCHAR(20),
-    time_away           VARCHAR(20),
-    has_children        BOOLEAN,
-    has_dogs            BOOLEAN,
-    has_cats            BOOLEAN,
+    CONSTRAINT uq_donations_mp_order_id UNIQUE (mp_order_id),
+    CONSTRAINT chk_donations_amount     CHECK (amount >= 5),
+    CONSTRAINT chk_donations_status     CHECK (status IN ('PENDING', 'APPROVED', 'EXPIRED', 'CANCELLED'))
+    );
 
-    -- Preferências para o pet
-    species_preference  VARCHAR(10),
-    ideal_pet_profile   VARCHAR(30),
-    preferred_size      VARCHAR(10),
+CREATE INDEX IF NOT EXISTS idx_donations_campaign_status ON donations (campaign_id, status);
+CREATE INDEX IF NOT EXISTS idx_donations_donor           ON donations (donor_id);
+CREATE INDEX IF NOT EXISTS idx_donations_ngo_status      ON donations (ngo_id, status);
 
-    created_at          TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at          TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT chk_match_profiles_housing            CHECK (housing IN ('APARTMENT', 'HOUSE_WITH_YARD', 'FARM')),
-    CONSTRAINT chk_match_profiles_exercise_routine   CHECK (exercise_routine IN ('SEDENTARY', 'ACTIVE', 'VERY_ACTIVE')),
-    CONSTRAINT chk_match_profiles_time_away          CHECK (time_away IN ('SHORT', 'REGULAR', 'LONG')),
-    CONSTRAINT chk_match_profiles_household          CHECK ((has_children IS NULL) = (has_dogs IS NULL)
-                                                        AND (has_dogs IS NULL) = (has_cats IS NULL)),
-    CONSTRAINT chk_match_profiles_species_preference CHECK (species_preference IN ('DOG', 'CAT', 'BOTH')),
-    CONSTRAINT chk_match_profiles_ideal_pet_profile  CHECK (ideal_pet_profile IN ('CALM_COMPANION', 'PLAYFUL_ACTIVE', 'PROTECTIVE_INDEPENDENT')),
-    CONSTRAINT chk_match_profiles_preferred_size     CHECK (preferred_size IN ('SMALL', 'MEDIUM', 'LARGE'))
-);
-
-COMMENT ON TABLE  match_profiles                  IS 'Perfil AUmatch: respostas do quiz de cada pessoa, usadas no cálculo de compatibilidade';
-COMMENT ON COLUMN match_profiles.user_id          IS 'A pessoa (PERSON) dona das respostas — uma linha por conta';
-COMMENT ON COLUMN match_profiles.time_away        IS 'Tempo fora de casa: SHORT (até 4h), REGULAR (4h a 8h) ou LONG (mais de 8h)';
-COMMENT ON COLUMN match_profiles.has_children     IS 'Mora com crianças — as três colunas has_* nulas juntas = pergunta sem resposta';
-COMMENT ON COLUMN match_profiles.preferred_size   IS 'Porte preferido; se estiver vazio, quem mora em APARTMENT conta como SMALL';
+COMMENT ON TABLE  donations                IS 'Doações PIX às campanhas. PENDING vale 30 min; depois vira EXPIRED (calculado na leitura)';
+COMMENT ON COLUMN donations.campaign_title IS 'Título no momento da doação: o histórico continua legível se a campanha for apagada de vez';
+COMMENT ON COLUMN donations.ngo_id         IS 'ONG dona no momento da doação: diz qual token usar para consultar a order, mesmo se a campanha for apagada de vez';
 
 -- ============================================================
 -- Opcional: trazer as contas de teste do banco antigo (adocao_db)
