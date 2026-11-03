@@ -22,4 +22,9 @@ public interface ChatReadRepository extends JpaRepository<ChatRead, ChatReadId> 
                 @Param("userId") Long userId,
                 @Param("lastMessageId") Long lastMessageId,
                 @Param("readAt") LocalDateTime readAt);
+
+    /** A exclusão de conta anonimiza a linha de users, então o ON DELETE CASCADE não dispara. */
+    @Modifying
+    @Query("delete from ChatRead r where r.id.userId = :userId")
+    int deleteByUserId(@Param("userId") Long userId);
 }
