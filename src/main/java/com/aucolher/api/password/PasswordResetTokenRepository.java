@@ -22,4 +22,9 @@ public interface PasswordResetTokenRepository extends JpaRepository<PasswordRese
     @Modifying
     @Query("delete from PasswordResetToken t where t.expiresAt < :cutoff or (t.usedAt is not null and t.usedAt < :cutoff)")
     int deleteOlderThan(@Param("cutoff") LocalDateTime cutoff);
+
+    /** A exclusão de conta anonimiza a linha de users, então o ON DELETE CASCADE não dispara. */
+    @Modifying
+    @Query("delete from PasswordResetToken t where t.userId = :userId")
+    int deleteByUserId(@Param("userId") Long userId);
 }

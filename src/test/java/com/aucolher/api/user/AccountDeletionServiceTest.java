@@ -8,6 +8,7 @@ import com.aucolher.api.event.EventAttendanceRepository;
 import com.aucolher.api.event.EventService;
 import com.aucolher.api.favorite.FavoriteRepository;
 import com.aucolher.api.match.MatchProfileRepository;
+import com.aucolher.api.password.PasswordResetTokenRepository;
 import com.aucolher.api.report.ReportService;
 import com.aucolher.api.report.entity.ReportResolution;
 import com.aucolher.api.shared.exception.BusinessException;
@@ -58,6 +59,8 @@ class AccountDeletionServiceTest {
     private FavoriteRepository favoriteRepository;
     @Mock
     private EventAttendanceRepository attendanceRepository;
+    @Mock
+    private PasswordResetTokenRepository passwordResetTokenRepository;
     @Mock
     private ReportService reportService;
 
@@ -134,6 +137,7 @@ class AccountDeletionServiceTest {
         verify(matchProfileRepository).deleteById(5L);
         verify(favoriteRepository).removeAllOf(5L);
         verify(attendanceRepository).deleteAllOf(5L);
+        verify(passwordResetTokenRepository).deleteByUserId(5L);
 
         assertThat(person.getName()).isEqualTo("Conta excluída");
         assertThat(person.getEmail()).isEqualTo("excluida-5@aucolher.invalid");

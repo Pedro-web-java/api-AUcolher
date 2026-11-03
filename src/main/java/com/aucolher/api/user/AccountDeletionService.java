@@ -8,6 +8,7 @@ import com.aucolher.api.event.EventAttendanceRepository;
 import com.aucolher.api.event.EventService;
 import com.aucolher.api.favorite.FavoriteRepository;
 import com.aucolher.api.match.MatchProfileRepository;
+import com.aucolher.api.password.PasswordResetTokenRepository;
 import com.aucolher.api.report.ReportService;
 import com.aucolher.api.report.entity.ReportResolution;
 import com.aucolher.api.shared.exception.BusinessException;
@@ -45,6 +46,7 @@ public class AccountDeletionService {
     private final MatchProfileRepository matchProfileRepository;
     private final FavoriteRepository favoriteRepository;
     private final EventAttendanceRepository attendanceRepository;
+    private final PasswordResetTokenRepository passwordResetTokenRepository;
     private final ReportService reportService;
 
     /** Tudo numa transação, na ordem do contrato (api-exclusao-conta.md §2). */
@@ -69,6 +71,7 @@ public class AccountDeletionService {
         matchProfileRepository.deleteById(id);
         favoriteRepository.removeAllOf(id);
         attendanceRepository.deleteAllOf(id);
+        passwordResetTokenRepository.deleteByUserId(id);
 
         // Lida de novo: cancelar os PIX das campanhas limpa o contexto do JPA
         User deleted = userRepository.findById(id).orElseThrow();
