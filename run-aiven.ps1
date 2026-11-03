@@ -13,7 +13,14 @@ foreach ($line in Get-Content $envFile) {
 }
 
 $env:JAVA_HOME = Join-Path $env:USERPROFILE ".jdks\ms-21.0.12"
-$mvn = "C:\Program Files\JetBrains\IntelliJ IDEA 2026.1.1\plugins\maven\lib\maven3\bin\mvn.cmd"
+# Usa o Maven do PATH; sem ele, procura o que vem com o IntelliJ (a pasta muda conforme a versão)
+$mvn = (Get-Command mvn.cmd -ErrorAction SilentlyContinue).Source
+if (-not $mvn) {
+    $mvn = Get-ChildItem "$env:LOCALAPPDATA\Programs\IntelliJ IDEA*\plugins\maven*\lib\maven3\bin\mvn.cmd",
+                         "$env:ProgramFiles\JetBrains\IntelliJ IDEA*\plugins\maven*\lib\maven3\bin\mvn.cmd" -ErrorAction SilentlyContinue |
+        Sort-Object FullName -Descending | Select-Object -First 1 -ExpandProperty FullName
+}
+if (-not $mvn) { throw "Maven não encontrado: instale-o ou adicione-o ao PATH." }
 
 Set-Location $PSScriptRoot
 if ($SpringArgs) {
