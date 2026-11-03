@@ -129,7 +129,8 @@ public class AuthService {
         User user = userRepository.findByEmail(dto.email())
                 .orElseThrow(() -> new InvalidCredentialsException("E-mail ou senha inválidos"));
 
-        if (user.getProvider() != AuthProvider.LOCAL || user.getPassword() == null) {
+        // Conta do Google que criou senha entra pelos dois caminhos; o provider continua GOOGLE
+        if (user.getPassword() == null) {
             throw new InvalidCredentialsException("Esta conta utiliza login via Google. Use a autenticação OAuth2");
         }
 
