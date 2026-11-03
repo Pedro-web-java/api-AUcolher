@@ -85,6 +85,8 @@ public class SecurityConfig {
                 .requestMatchers("/api/match/**").hasRole("PERSON")
                 // Pedido de adoção: pessoa ou ONG pedem; o admin não adota
                 .requestMatchers(HttpMethod.POST, "/api/adoption-requests").hasAnyRole("PERSON", "NGO")
+                // Chat dos pedidos: só as partes conversam; o admin não acessa
+                .requestMatchers("/api/chats/**").hasAnyRole("PERSON", "NGO")
                 .anyRequest().authenticated()
             )
             // Sem isto, uma requisição sem token para rota protegida seria

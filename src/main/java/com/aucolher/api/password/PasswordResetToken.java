@@ -2,6 +2,9 @@ package com.aucolher.api.password;
 
 import java.time.LocalDateTime;
 
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -21,6 +24,7 @@ public class PasswordResetToken {
     private Long userId;
 
     /** SHA-256 (hex) do token enviado por e-mail; o token puro nunca é gravado. */
+    @JdbcTypeCode(SqlTypes.CHAR) // a coluna é CHAR(64)
     @Column(name = "token_hash", nullable = false, unique = true, length = 64, columnDefinition = "CHAR(64)")
     private String tokenHash;
 

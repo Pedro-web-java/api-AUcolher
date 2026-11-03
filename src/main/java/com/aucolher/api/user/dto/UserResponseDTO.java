@@ -22,6 +22,7 @@ public record UserResponseDTO(
         String email,
         UserType userType,
         AuthProvider provider,
+        boolean hasPassword, // o front decide entre "Alterar senha" e "Criar senha"
         LocalDateTime createdAt, // base do "Membro desde [ano]" no perfil
         String photoUrl,
         String coverUrl, // banner do perfil: só ONG, nulo para os outros
@@ -57,6 +58,7 @@ public record UserResponseDTO(
                 user.getEmail(),
                 user.getUserType(),
                 user.getProvider(),
+                user.getPassword() != null,
                 user.getCreatedAt(),
                 user.getPhotoUrl(),
                 user.getCoverUrl(),

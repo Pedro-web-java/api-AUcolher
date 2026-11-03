@@ -44,6 +44,13 @@ public class User {
     private String password;
 
     /**
+     * Última troca de senha: tokens emitidos antes dela deixam de valer. Só leitura
+     * aqui, quem grava é o PasswordUserStore (um save da entidade não pode sobrescrever).
+     */
+    @Column(name = "password_changed_at", insertable = false, updatable = false)
+    private LocalDateTime passwordChangedAt;
+
+    /**
      * Obrigatório apenas para userType = NGO.
      * Armazenado apenas com dígitos (sem máscara).
      */

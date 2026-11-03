@@ -10,6 +10,8 @@ import com.aucolher.api.animal.AnimalService;
 import com.aucolher.api.animal.dto.AnimalSummaryDTO;
 import com.aucolher.api.animal.entity.Animal;
 import com.aucolher.api.animal.entity.AnimalStatus;
+import com.aucolher.api.chat.ChatService;
+import com.aucolher.api.chat.SystemEvent;
 import com.aucolher.api.match.MatchProfileRepository;
 import com.aucolher.api.shared.exception.BusinessException;
 import com.aucolher.api.shared.exception.ForbiddenException;
@@ -53,6 +55,8 @@ class AdoptionTransitionsTest {
     private MatchProfileRepository matchProfileRepository;
     @Mock
     private UserRepository userRepository;
+    @Mock
+    private ChatService chatService;
     @Mock
     private EntityManager entityManager;
 
@@ -204,6 +208,79 @@ class AdoptionTransitionsTest {
         requestService.onAnimalLeftListing(new AnimalLeftListingEvent(10L, true));
 
         assertThat(accepted.getCancelReason()).isEqualTo(CancelReason.LISTING_REMOVED);
+        verifyNoInteractions(chatService);
+    }
+
+    // ===================== Avisos no chat =====================
+
+    @ParameterizedTest(name = "{0} → {1} por {2}: {3}")
+    @CsvSource({
+            "ACCEPTED, AWAITING_DELIVERY, OWNER, DELIVERY_REQUESTED",
+            "AWAITING_DELIVERY, ACCEPTED, ADOPTER, DELIVERY_DECLINED",
+            "AWAITING_DELIVERY, CONCLUDED, ADOPTER, ADOPTION_CONCLUDED",
+            "ACCEPTED, CANCELLED, ADOPTER, ADOPTER_WITHDREW",
+            "AWAITING_DELIVERY, CANCELLED, ADOPTER, ADOPTER_WITHDREW",
+            "ACCEPTED, CANCELLED, OWNER, OWNER_WITHDREW",
+            "AWAITING_DELIVERY, CANCELLED, OWNER, OWNER_WITHDREW",
+    })
+    void statusChangesLeaveANoticeInTheChat(AdoptionStatus from, AdoptionStatus target, String role, SystemEvent event) {
+        givenRequest(from);
+
+        requestService.changeStatus(50L, role.equals("OWNER") ? OWNER_EMAIL : ADOPTER_EMAIL, target);
+
+        verify(chatService).addSystemMessage(50L, event);
+        verifyNoMoreInteractions(chatService);
+    }
+
+    @ParameterizedTest(name = "{0} → {1} por {2}")
+    @CsvSource({
+            // Ainda não havia conversa
+            "PENDING, ACCEPTED, OWNER",
+            "PENDING, REJECTED, OWNER",
+            "PENDING, CANCELLED, ADOPTER",
+            // Clique duplo: nada mudou
+            "ACCEPTED, ACCEPTED, OWNER",
+            "AWAITING_DELIVERY, AWAITING_DELIVERY, OWNER",
+    })
+    void theseChangesLeaveNoNotice(AdoptionStatus from, AdoptionStatus target, String role) {
+        givenRequest(from);
+
+        requestService.changeStatus(50L, role.equals("OWNER") ? OWNER_EMAIL : ADOPTER_EMAIL, target);
+
+        verifyNoInteractions(chatService);
+    }
+
+    @Test
+    void aRefusedChangeLeavesNoNotice() {
+        givenRequest(AdoptionStatus.ACCEPTED);
+
+        assertThatThrownBy(() -> requestService.changeStatus(50L, ADOPTER_EMAIL, AdoptionStatus.AWAITING_DELIVERY))
+                .isInstanceOf(ForbiddenException.class);
+
+        verifyNoInteractions(chatService);
+    }
+
+    @Test
+    void concludingWarnsOnlyTheWinningConversation() {
+        AdoptionRequest winner = givenRequest(AdoptionStatus.AWAITING_DELIVERY);
+        AdoptionRequest accepted = otherRequest(52L, AdoptionStatus.ACCEPTED);
+        when(requestRepository.findByAnimalIdAndStatusIn(10L, AdoptionStatus.ACTIVE)).thenReturn(List.of(winner, accepted));
+
+        requestService.changeStatus(50L, ADOPTER_EMAIL, AdoptionStatus.CONCLUDED);
+
+        verify(chatService).addSystemMessage(50L, SystemEvent.ADOPTION_CONCLUDED);
+        verifyNoMoreInteractions(chatService);
+    }
+
+    @Test
+    void cancellingEverythingOfAnAccountLeavesNoNotice() {
+        AdoptionRequest accepted = otherRequest(51L, AdoptionStatus.ACCEPTED);
+        when(requestRepository.findInvolving(1L, AdoptionStatus.ACTIVE)).thenReturn(List.of(accepted));
+
+        requestService.cancelAllForAccount(1L, CancelReason.ACCOUNT_BANNED);
+
+        assertThat(accepted.getStatus()).isEqualTo(AdoptionStatus.CANCELLED);
+        verifyNoInteractions(chatService);
     }
 
     // ===================== Fixtures =====================

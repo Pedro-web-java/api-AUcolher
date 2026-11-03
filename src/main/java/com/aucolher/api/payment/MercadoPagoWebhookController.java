@@ -7,14 +7,16 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
 
 /**
  * POST /api/webhooks/mercadopago?data.id={order}&type=order  (rota pública).
  * 1) valida a assinatura; 2) localiza a doação; 3) consulta a order com o token da ONG;
  * 4) atualiza a doação de forma atômica; 5) responde 200 rápido.
+ *
+ * DESATIVADO (sem @RestController): a rota é atendida por donation.MercadoPagoWebhookController
+ * enquanto o PIX usa o token provisório. Ao migrar para o token de cada ONG, reative este e
+ * remova o outro: os dois juntos impedem a API de subir.
  */
-@RestController
 public class MercadoPagoWebhookController {
 
     private static final Logger log = LoggerFactory.getLogger(MercadoPagoWebhookController.class);

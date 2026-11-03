@@ -1,4 +1,4 @@
-package com.aucolher.payment;
+package com.aucolher.api.payment;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
