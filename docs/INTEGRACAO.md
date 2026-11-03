@@ -79,8 +79,8 @@ trazem o usuário (login, cadastro, OAuth e `PUT /api/users/me`).
 
 ## 5. Chat: mensagens de sistema (api-chat §4.3)
 
-Injete o `ChatService` no `AdoptionRequestService` e chame **dentro da mesma `@Transactional`**,
-depois de aplicar a transição:
+**Feito.** O `AdoptionRequestService` tem o `ChatService` injetado e chama **dentro da mesma
+`@Transactional`**, depois de aplicar a transição:
 
 | Transição | Chamada |
 |---|---|
@@ -94,6 +94,7 @@ depois de aplicar a transição:
 | `rehome(...)` (CONCLUDED → REHOMED) | `SystemEvent.ANIMAL_REHOMED` |
 
 Cancelamentos em lote (`ANIMAL_ADOPTED`, `ANIMAL_UNAVAILABLE`, moderação) **não** chamam o chat.
+Corrigir um retorno já registrado (RETURNED → RETURNED) também não: o aviso sai só no primeiro registro.
 
 ## 6. Módulo de campanhas e doações (outro contrato)
 
@@ -112,6 +113,9 @@ Este pacote entrega o que o contrato do Mercado Pago define. Para o módulo de c
 `mercado_pago_accounts`, `password_reset_tokens`, `chat_messages` e `chat_reads` têm `ON DELETE CASCADE`
 para `users`/`adoption_requests`, então a exclusão da ONG apaga a linha do Mercado Pago sozinha.
 Se a exclusão for lógica (anonimização), apague a linha de `mercado_pago_accounts` no `DeleteAccountService`.
+
+A exclusão do AUcolher **é** lógica, então o cascade não dispara: o `AccountDeletionService` apaga os links de
+senha e os `chat_reads` da conta. As `chat_messages` ficam, para a outra parte manter o histórico.
 
 ## 8. Pontos para conferir
 
