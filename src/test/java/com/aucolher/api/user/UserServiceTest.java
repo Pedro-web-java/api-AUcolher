@@ -103,6 +103,15 @@ class UserServiceTest {
     }
 
     @Test
+    void hasPasswordTellsWhetherTheAccountHasAPassword() {
+        User account = user(UserType.PERSON);
+        assertThat(UserResponseDTO.from(account).hasPassword()).isFalse();
+
+        account.setPassword("hash");
+        assertThat(UserResponseDTO.from(account).hasPassword()).isTrue();
+    }
+
+    @Test
     void ngoSavesTheBannerAndShowsItOnThePublicProfile() {
         User ngo = user(UserType.NGO);
         when(userRepository.findByEmail("conta@email.com")).thenReturn(Optional.of(ngo));
