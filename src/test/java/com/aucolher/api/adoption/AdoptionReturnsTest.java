@@ -12,6 +12,8 @@ import com.aucolher.api.animal.dto.AnimalSummaryDTO;
 import com.aucolher.api.animal.entity.Animal;
 import com.aucolher.api.animal.entity.AnimalSize;
 import com.aucolher.api.animal.entity.AnimalStatus;
+import com.aucolher.api.chat.ChatService;
+import com.aucolher.api.chat.SystemEvent;
 import com.aucolher.api.match.MatchProfileRepository;
 import com.aucolher.api.match.entity.*;
 import com.aucolher.api.shared.exception.BusinessException;
@@ -58,6 +60,8 @@ class AdoptionReturnsTest {
     private MatchProfileRepository matchProfileRepository;
     @Mock
     private UserRepository userRepository;
+    @Mock
+    private ChatService chatService;
     @Mock
     private EntityManager entityManager;
 
@@ -136,6 +140,7 @@ class AdoptionReturnsTest {
         assertThat(request.getConcludedAt()).isNotNull();
         verify(animalService).returnToOwner(animal);
         verify(entityManager).refresh(request, LockModeType.PESSIMISTIC_WRITE);
+        verify(chatService).addSystemMessage(50L, SystemEvent.ANIMAL_RETURNED);
     }
 
     @Test
@@ -148,6 +153,7 @@ class AdoptionReturnsTest {
         assertThat(request.getReturnReason()).isEqualTo(ReturnReason.BEHAVIOR);
         assertThat(request.getReturnDate()).isEqualTo(LocalDate.now());
         verify(animalService, never()).returnToOwner(any());
+        verifyNoInteractions(chatService);
     }
 
     @Test
@@ -228,6 +234,7 @@ class AdoptionReturnsTest {
         verify(animalService).createRehomed(request.getAdopter(), null, 50L);
         verify(entityManager).refresh(request, LockModeType.PESSIMISTIC_WRITE);
         assertThat(animal.getStatus()).isEqualTo(AnimalStatus.ADOPTED);
+        verify(chatService).addSystemMessage(50L, SystemEvent.ANIMAL_REHOMED);
     }
 
     @Test

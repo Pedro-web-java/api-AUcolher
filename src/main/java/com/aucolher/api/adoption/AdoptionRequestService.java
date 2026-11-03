@@ -20,6 +20,8 @@ import com.aucolher.api.animal.dto.AnimalRequestDTO;
 import com.aucolher.api.animal.dto.AnimalSummaryDTO;
 import com.aucolher.api.animal.entity.Animal;
 import com.aucolher.api.animal.entity.AnimalStatus;
+import com.aucolher.api.chat.ChatService;
+import com.aucolher.api.chat.SystemEvent;
 import com.aucolher.api.match.MatchProfileRepository;
 import com.aucolher.api.match.MatchScoreCalculator;
 import com.aucolher.api.match.entity.MatchProfile;
@@ -59,6 +61,7 @@ public class AdoptionRequestService {
     private final AnimalService animalService;
     private final MatchProfileRepository matchProfileRepository;
     private final UserRepository userRepository;
+    private final ChatService chatService;
     private final EntityManager entityManager;
 
     /**
@@ -138,6 +141,7 @@ public class AdoptionRequestService {
      * - adotante: AWAITING_DELIVERY → CONCLUDED; AWAITING_DELIVERY → ACCEPTED ("ainda não
      *   recebi"); qualquer ativo → CANCELLED (desistiu).
      * Repetir o status atual não muda nada (clique duplo).
+     * O aviso no chat entra na mesma transação da troca de status (api-chat.md §1).
      */
     @Transactional
     public AdoptionRequestDTO changeStatus(Long id, String email, AdoptionStatus target) {
@@ -157,6 +161,7 @@ public class AdoptionRequestService {
                     // "Ainda não recebi": o dono confirmou a entrega, mas o pet não
                     // chegou (engano ou golpe). O pedido volta a aceito e o chat reabre
                     request.returnToAccepted();
+                    chatService.addSystemMessage(id, SystemEvent.DELIVERY_DECLINED);
                 } else {
                     requireRole(isOwner, "Só o dono do animal pode aceitar o pedido");
                     requireStatus(request, "Só um pedido pendente pode ser aceito", AdoptionStatus.PENDING);
@@ -172,23 +177,29 @@ public class AdoptionRequestService {
                 requireRole(isOwner, "Só o dono do animal confirma a entrega");
                 requireStatus(request, "Só um pedido aceito pode ir para a entrega", AdoptionStatus.ACCEPTED);
                 request.requestDelivery();
+                chatService.addSystemMessage(id, SystemEvent.DELIVERY_REQUESTED);
             }
             case CONCLUDED -> {
                 requireRole(isAdopter, "Só quem adotou confirma a chegada do pet");
                 requireStatus(request, "A chegada só é confirmada depois que o dono confirmar a entrega",
                         AdoptionStatus.AWAITING_DELIVERY);
                 conclude(request);
+                chatService.addSystemMessage(id, SystemEvent.ADOPTION_CONCLUDED);
             }
             case CANCELLED -> {
                 if (isAdopter) {
                     requireStatus(request, "Este pedido já foi encerrado", AdoptionStatus.PENDING,
                             AdoptionStatus.ACCEPTED, AdoptionStatus.AWAITING_DELIVERY);
+                    // Pendente ainda não tem conversa: não há onde avisar
+                    boolean hadConversation = request.getStatus() != AdoptionStatus.PENDING;
                     request.cancel(CancelReason.ADOPTER_WITHDREW);
+                    if (hadConversation) chatService.addSystemMessage(id, SystemEvent.ADOPTER_WITHDREW);
                 } else {
                     // Pendente o dono não cancela: recusa
                     requireStatus(request, "Para um pedido pendente, use Recusar",
                             AdoptionStatus.ACCEPTED, AdoptionStatus.AWAITING_DELIVERY);
                     request.cancel(CancelReason.OWNER_WITHDREW);
+                    chatService.addSystemMessage(id, SystemEvent.OWNER_WITHDREW);
                 }
             }
             case PENDING -> throw new BusinessException("Um pedido não volta a ficar pendente");
@@ -259,6 +270,8 @@ public class AdoptionRequestService {
 
         if (request.getStatus() == AdoptionStatus.CONCLUDED) {
             animalService.returnToOwner(request.getAnimal());
+            // Só no primeiro registro: corrigir a data ou o motivo não avisa de novo
+            chatService.addSystemMessage(id, SystemEvent.ANIMAL_RETURNED);
         }
         request.recordReturn(body.returnDate(), body.reason(), body.note());
         return toDtos(List.of(requestRepository.saveAndFlush(request))).get(0);
@@ -291,6 +304,7 @@ public class AdoptionRequestService {
 
         animalService.createRehomed(request.getAdopter(), body.animal(), request.getId());
         request.rehome(body.reason(), body.note());
+        chatService.addSystemMessage(id, SystemEvent.ANIMAL_REHOMED);
         return toDtos(List.of(requestRepository.saveAndFlush(request))).get(0);
     }
 

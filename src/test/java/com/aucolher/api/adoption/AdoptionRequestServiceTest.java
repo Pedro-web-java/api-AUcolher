@@ -53,6 +53,8 @@ class AdoptionRequestServiceTest {
     @Mock
     private UserRepository userRepository;
     @Mock
+    private com.aucolher.api.chat.ChatService chatService;
+    @Mock
     private EntityManager entityManager;
 
     @InjectMocks
