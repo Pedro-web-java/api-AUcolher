@@ -9,7 +9,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
@@ -52,7 +51,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         if (email != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-            UserDetails userDetails;
+            AuthenticatedUser userDetails;
             try {
                 userDetails = userDetailsService.loadUserByUsername(email);
             } catch (UsernameNotFoundException e) {
@@ -65,6 +64,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 // Conta banida depois de o token ser emitido: o token deixa de valer na hora
                 if (!userDetails.isEnabled()) {
                     SuspendedAccount.write(response, objectMapper);
+                    return;
+                }
+                // Senha trocada depois de o token ser emitido: segue sem autenticação (401 nas rotas protegidas)
+                if (!userDetails.acceptsTokenIssuedAt(jwtService.extractIssuedAt(token))) {
+                    filterChain.doFilter(request, response);
                     return;
                 }
                 UsernamePasswordAuthenticationToken authToken =
